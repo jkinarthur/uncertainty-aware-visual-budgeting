@@ -190,11 +190,20 @@ class HFBackend(MLLMBackend):
         return outs
 
     def sample_answers(self, image, question, candidates, k, coarse_tokens):
-        # Light test-time augmentation: jitter thumbnail resolution per pass.
+        # Test-time augmentation to surface epistemic uncertainty via cross-pass
+        # disagreement. Perturbations are semantics-preserving (no geometric
+        # flips/rotations, which would corrupt spatial "left/right" questions):
+        # a wide resolution sweep plus a mild detail blur that stresses the
+        # fine-grained evidence a confident model relies on.
+        from PIL import ImageFilter
+
         answers = []
         for j in range(k):
-            jitter = int(coarse_tokens * (0.85 + 0.3 * (j / max(k - 1, 1))))
+            frac = j / max(k - 1, 1)
+            jitter = int(coarse_tokens * (0.65 + 0.7 * frac))  # 0.65x .. 1.35x
             thumb = resize_to_tokens(image, jitter, self.patch_size)
+            if j % 2 == 1:  # every other pass: blur to stress fine detail
+                thumb = thumb.filter(ImageFilter.GaussianBlur(radius=1.0))
             probs = self._score_candidates([thumb], question, candidates)
             answers.append(candidates[int(np.argmax(probs))])
         return answers

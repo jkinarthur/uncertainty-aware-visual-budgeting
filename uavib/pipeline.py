@@ -75,6 +75,7 @@ class UAViB:
         current = coarse
         best_conf = 1.0 - u_global
         u_prev = u_global
+        u_steps = [u_global]
         history = [{
             "step": 0, "tokens": int(coarse.tokens_used),
             "uncertainty": u_global, "answer": coarse.pred,
@@ -97,6 +98,7 @@ class UAViB:
             )
             feat_r = compute_features(refined, sampled)
             u_now = self._calibrated_uncertainty(feat_r)
+            u_steps.append(u_now)
             steps = step
             history.append({
                 "step": step, "tokens": int(refined.tokens_used),
@@ -117,10 +119,17 @@ class UAViB:
 
         latency_ms = (time.perf_counter() - t0) * 1000.0
         pred = current.pred
+        # Report uncertainty aggregated over the refinement trajectory. The
+        # coarse global estimate ranks correctness better than the final
+        # refined one (refinement uniformly inflates confidence and compresses
+        # the range), so averaging preserves selective-prediction signal while
+        # still reflecting the evidence gathered during refinement.
+        agg_unc = float(np.clip(np.mean(u_steps), 0.0, 1.0))
+        agg_conf = 1.0 - agg_unc
         result = QueryResult(
             answer=pred,
-            confidence=best_conf,
-            uncertainty=1.0 - best_conf,
+            confidence=agg_conf,
+            uncertainty=agg_unc,
             tokens_used=int(current.tokens_used),
             num_refine_steps=steps,
             region_budgets=region_budgets,
