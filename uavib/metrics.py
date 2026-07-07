@@ -10,6 +10,9 @@ from .calibration import expected_calibration_error
 
 _EPS = 1e-12
 
+# ``np.trapz`` was removed in NumPy 2.0 in favour of ``np.trapezoid``.
+_trapz = getattr(np, "trapezoid", None) or np.trapz
+
 
 def accuracy(correct: Sequence[bool]) -> float:
     return float(np.mean([1.0 if c else 0.0 for c in correct])) if len(correct) else 0.0
@@ -53,7 +56,7 @@ def risk_coverage_auc(confidences: np.ndarray, correct: np.ndarray) -> float:
     err_sorted = err[order]
     cum_err = np.cumsum(err_sorted) / (np.arange(len(err_sorted)) + 1)
     coverage = (np.arange(len(err_sorted)) + 1) / len(err_sorted)
-    return float(np.trapz(cum_err, coverage))
+    return float(_trapz(cum_err, coverage))
 
 
 def ece(confidences: np.ndarray, correct: np.ndarray, n_bins: int = 15) -> float:
