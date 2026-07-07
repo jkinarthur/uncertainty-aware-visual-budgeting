@@ -31,11 +31,17 @@ def main() -> None:
     ap.add_argument("--calib", type=int, default=80, help="calibration samples")
     ap.add_argument("--test", type=int, default=200, help="test samples")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--hf-id", default="dmarsili/RSVQA-LR-2k",
+                    help="HuggingFace dataset id to download")
+    ap.add_argument("--name", default="rsvqa-lr",
+                    help="UAViB dataset name written into each manifest record")
+    ap.add_argument("--subdir", default="rsvqa",
+                    help="on-disk subdir under <out> for this dataset")
     args = ap.parse_args()
 
     from datasets import load_dataset
 
-    ds = load_dataset("dmarsili/RSVQA-LR-2k", split="validation")
+    ds = load_dataset(args.hf_id, split="validation")
 
     # Keep clean binary questions (RSVQA presence/comparison answers).
     idx = [i for i, a in enumerate(ds["answer"]) if str(a).lower() in ("yes", "no")]
@@ -47,7 +53,7 @@ def main() -> None:
     calib_idx = idx[: args.calib]
     test_idx = idx[args.calib: args.calib + args.test]
 
-    ds_dir = os.path.join(args.out, "rsvqa")
+    ds_dir = os.path.join(args.out, args.subdir)
     img_dir = os.path.join(ds_dir, "images")
     os.makedirs(img_dir, exist_ok=True)
 
@@ -60,7 +66,7 @@ def main() -> None:
                 rel = f"images/{split_name}_{j:05d}.png"
                 img.save(os.path.join(ds_dir, rel))
                 fh.write(json.dumps({
-                    "dataset": "rsvqa-lr",
+                    "dataset": args.name,
                     "image": rel,
                     "question": rec["question"],
                     "candidates": ["yes", "no"],
@@ -68,7 +74,7 @@ def main() -> None:
                 }) + "\n")
         print(f"  wrote {len(indices)} -> {path}")
 
-    print(f"Preparing RSVQA-LR under {ds_dir} ...")
+    print(f"Preparing {args.name} ({args.hf_id}) under {ds_dir} ...")
     write_split(calib_idx, "calib")
     write_split(test_idx, "test")
     print("Done.")

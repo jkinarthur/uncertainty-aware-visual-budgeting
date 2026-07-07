@@ -1,0 +1,17 @@
+# Qwen2.5-VL-7B on RSVQA-HR (512x512 remote-sensing images, ~300 native tokens).
+# Budgets sit below the native token count so token-reduction baselines actually
+# differentiate (unlike the 256px LR set where every budget saturates).
+coarse_tokens: 64        # ~8x8 patch thumbnail of the whole scene
+b_min: 96
+b_max: 300               # near native full-resolution token budget at 512px
+grid_h: 6                # 36 regions of ~85px each -> finer region localisation
+grid_w: 6
+alpha: 0.5
+tau: 0.3
+gamma: 8.0
+k_passes: 3
+max_refine_steps: 2      # keep occlusion passes affordable on a single GPU
+top_m_regions: 4
+region_floor: 2
+device: cuda
+seed: 0

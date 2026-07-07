@@ -31,7 +31,7 @@ _DOMAIN = {
 }
 
 _SUBDIR = {
-    "rsvqa-lr": "rsvqa", "rsvqa-hr": "rsvqa", "rsivqa": "rsivqa",
+    "rsvqa-lr": "rsvqa", "rsvqa-hr": "rsvqa_hr", "rsivqa": "rsivqa",
     "xlrs-bench": "xlrs_bench", "acdc": "acdc", "isic": "isic",
     "mvtec-ad": "mvtec_ad",
 }
