@@ -190,22 +190,17 @@ class HFBackend(MLLMBackend):
         return outs
 
     def sample_answers(self, image, question, candidates, k, coarse_tokens):
-        # Test-time augmentation to surface epistemic uncertainty via cross-pass
-        # disagreement. These passes feed ONLY the agreement feature (not the
-        # reported answer), so the perturbations can be aggressive without any
-        # risk to task accuracy. Perturbations are semantics-preserving (no
-        # geometric flips/rotations, which would corrupt spatial "left/right"
-        # questions): a wide resolution sweep plus escalating detail blur that
-        # stresses the fine-grained evidence a confident model relies on.
-        from PIL import ImageFilter
-
+        # Mild test-time augmentation (resolution jitter) to surface epistemic
+        # uncertainty via cross-pass disagreement. These passes feed ONLY the
+        # agreement feature, not the reported answer. Perturbations are kept
+        # deliberately MILD and semantics-preserving: under a confident model a
+        # flip only occurs on genuinely borderline queries, making disagreement
+        # a rare but high-precision error signal. (Aggressive perturbation adds
+        # false disagreements and destroys this correlation.)
         answers = []
         for j in range(k):
-            frac = j / max(k - 1, 1)
-            jitter = int(coarse_tokens * (0.45 + 0.95 * frac))  # 0.45x .. 1.40x
+            jitter = int(coarse_tokens * (0.85 + 0.3 * (j / max(k - 1, 1))))
             thumb = resize_to_tokens(image, jitter, self.patch_size)
-            radius = 0.5 + 2.0 * frac                            # 0.5 .. 2.5 px
-            thumb = thumb.filter(ImageFilter.GaussianBlur(radius=radius))
             probs = self._score_candidates([thumb], question, candidates)
             answers.append(candidates[int(np.argmax(probs))])
         return answers
