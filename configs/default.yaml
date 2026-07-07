@@ -1,0 +1,31 @@
+# Default UAViB configuration (matches paper Implementation Details).
+coarse_tokens: 144
+k_passes: 4
+free_form_samples: 10
+sample_temperature: 0.7
+nucleus_p: 0.9
+
+grid_h: 8
+grid_w: 8
+alpha: 0.5
+
+b_min: 128
+b_max: 1024
+region_floor: 2
+tau: 0.3
+gamma: 8.0
+step_tokens: 4
+
+epsilon: 0.01
+max_refine_steps: 3
+top_m_regions: 8
+
+calibrator_hidden: 16
+calibrator_lr: 0.001
+calibrator_epochs: 200
+calibrator_batch: 256
+calibrator_lambda: 1.0
+ece_bins: 15
+
+seed: 0
+device: cpu

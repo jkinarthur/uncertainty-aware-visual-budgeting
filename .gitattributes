@@ -1,0 +1,11 @@
+# Keep shell scripts LF so they run on Linux (AWS) regardless of host OS
+*.sh text eol=lf
+deploy/* text eol=lf
+
+# Normalize text files
+*.py text
+*.md text
+*.yaml text
+*.yml text
+*.txt text
+*.toml text

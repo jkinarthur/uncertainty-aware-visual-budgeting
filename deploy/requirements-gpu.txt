@@ -1,0 +1,10 @@
+# GPU / real-MLLM dependencies for AWS runs. Install torch matching the CUDA
+# version on the instance first (see deploy/aws_setup.sh), then the rest.
+torch>=2.1
+torchvision>=0.16
+transformers>=4.49
+accelerate>=0.30
+qwen-vl-utils>=0.0.8
+sentencepiece>=0.1.99
+einops>=0.7
+matplotlib>=3.6
