@@ -32,15 +32,24 @@ def load_dataset(
 
 def calibration_pool(source: str = "synthetic", n_per_dataset: int = 200,
                      seed: int = 0, data_root: Optional[str] = None,
-                     exclude_domains=None) -> List[Sample]:
-    """Domain-mixed calibration pool; optionally exclude domains (for LODO)."""
+                     exclude_domains=None, datasets=None) -> List[Sample]:
+    """Domain-mixed calibration pool; optionally exclude domains (for LODO).
+
+    ``datasets`` restricts the real-data pool to the given dataset names; any
+    dataset without a ``calib`` manifest on disk is skipped so the pool can be
+    built from whatever real data has been prepared.
+    """
     if source == "synthetic":
         pool = synthetic.generate_calibration_pool(n_per_dataset, seed)
     else:
         from .real import load_real
         pool = []
-        for name in DATASETS:
-            pool.extend(load_real(name, root=data_root, split="calib"))
+        for name in (datasets or DATASETS):
+            try:
+                pool.extend(load_real(name, root=data_root, split="calib",
+                                      limit=n_per_dataset))
+            except FileNotFoundError:
+                continue
     if exclude_domains:
         exclude = set(exclude_domains)
         pool = [s for s in pool if s.domain not in exclude]

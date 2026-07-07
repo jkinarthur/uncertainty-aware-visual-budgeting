@@ -44,6 +44,8 @@ def main_train_calibrator(argv=None) -> None:
     ap.add_argument("--config", default=None)
     ap.add_argument("--source", default="synthetic", choices=["synthetic", "real"])
     ap.add_argument("--data-root", default=None)
+    ap.add_argument("--datasets", nargs="*", default=None,
+                    help="restrict the real calibration pool to these datasets")
     ap.add_argument("--n-per-dataset", type=int, default=200)
     ap.add_argument("--out", default="artifacts/calibrator.json")
     ap.add_argument("--seed", type=int, default=0)
@@ -58,7 +60,8 @@ def main_train_calibrator(argv=None) -> None:
     backend = get_backend(args.backend, **kwargs)
 
     pool = calibration_pool(source=args.source, n_per_dataset=args.n_per_dataset,
-                            seed=args.seed, data_root=args.data_root)
+                            seed=args.seed, data_root=args.data_root,
+                            datasets=args.datasets)
     print(f"Fitting calibrator on {len(pool)} domain-mixed samples...")
     head = fit_calibrator(backend, pool, cfg, verbose=True)
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
