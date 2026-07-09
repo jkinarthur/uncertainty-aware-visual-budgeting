@@ -83,6 +83,7 @@ class CalibrationHead:
         )
         self.mean = np.zeros(in_dim)
         self.std = np.ones(in_dim)
+        self.refine_threshold = None   # data-driven top-R uncertainty gate (set at fit)
         self._fitted = False
 
     # --- forward ---
@@ -196,6 +197,8 @@ class CalibrationHead:
             "log_temp": self.p.log_temp,
             "mean": self.mean.tolist(),
             "std": self.std.tolist(),
+            "refine_threshold": (None if self.refine_threshold is None
+                                 else float(self.refine_threshold)),
         }
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(obj, fh)
@@ -212,12 +215,16 @@ class CalibrationHead:
         )
         head.mean = np.array(obj["mean"])
         head.std = np.array(obj["std"])
+        rt = obj.get("refine_threshold", None)
+        head.refine_threshold = (None if rt is None else float(rt))
         head._fitted = True
         return head
 
 
 class IdentityCalibrator:
     """Fallback used before a calibrator is trained: confidence = 1 - entropy."""
+
+    refine_threshold = None
 
     def predict_proba(self, Z: np.ndarray) -> np.ndarray:
         Z = np.atleast_2d(np.asarray(Z, dtype=np.float64))

@@ -46,4 +46,15 @@ def fit_calibrator(
         batch=cfg.calibrator_batch, lam=cfg.calibrator_lambda,
         n_bins=cfg.ece_bins, seed=cfg.seed, verbose=verbose,
     )
+    # Data-driven refinement gate: refine only the top ``refine_fraction`` most
+    # uncertain queries. Setting the threshold from the calibration pool keeps the
+    # refine rate controlled regardless of how hard the benchmark is (an absolute
+    # gate would fire on ~everything when accuracy is low).
+    frac = float(getattr(cfg, "refine_fraction", 0.35))
+    if 0.0 < frac < 1.0:
+        u_calib = head.uncertainty(Z)
+        head.refine_threshold = float(np.quantile(u_calib, 1.0 - frac))
+        if verbose:
+            print(f"  refine_threshold={head.refine_threshold:.4f} "
+                  f"(top {frac:.0%} most uncertain)")
     return head

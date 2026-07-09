@@ -17,7 +17,19 @@ class QwenVLBackend(HFBackend):
         from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 
         dtype = getattr(torch, self.dtype)
-        self._processor = AutoProcessor.from_pretrained(self.model_id)
+        # Bound the vision-token count per image tile. The processor otherwise
+        # UPSCALES the small region crops (native tiles are only a few hundred
+        # px on the resolution-capped scenes), producing thousands of redundant
+        # tokens that make the eager-attention forward run out of memory on a
+        # single 24 GB GPU. Capping max_pixels stops the wasteful upscaling
+        # without discarding any real detail (crops never exceed their native
+        # resolution) and keeps the eager attention affordable.
+        patch = self.patch_size
+        self._processor = AutoProcessor.from_pretrained(
+            self.model_id,
+            min_pixels=4 * patch * patch,       # >= 4 tokens
+            max_pixels=384 * patch * patch,     # <= 384 tokens / tile
+        )
         self._model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             self.model_id, torch_dtype=dtype, device_map=self.device,
             attn_implementation="eager",  # needed for output_attentions

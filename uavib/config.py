@@ -38,10 +38,32 @@ class UAViBConfig:
 
     # --- Progressive refinement ---
     epsilon: float = 0.01              # stop when uncertainty reduction < epsilon
+    refine_gate: float = 0.3           # fallback absolute gate (used only when the
+                                       # calibrator has no data-driven refine_threshold):
+                                       # skip refinement when calibrated uncertainty is
+                                       # at/below this. An absolute gate mis-fires on hard
+                                       # benchmarks (almost every query exceeds it), so
+                                       # prefer the fraction-based gate below.
+    refine_fraction: float = 0.35      # uncertainty budget: refine only the top-R most
+                                       # uncertain fraction of queries. The concrete
+                                       # threshold is set from the calibration pool
+                                       # (quantile at 1-refine_fraction), which keeps the
+                                       # refine rate controlled across benchmarks.
+    report_uncertainty: str = "mean"   # which trajectory uncertainty to expose for
+                                       # selective prediction: "coarse" = coarse-pass
+                                       # difficulty score U_hat (ranks correctness best;
+                                       # used for the ultra-high-res runs), "final" = last
+                                       # adopted pass, "mean" = trajectory average (legacy
+                                       # default, keeps confidence tied to the final answer).
     max_refine_steps: int = 3          # t_max
     top_m_regions: int = 8             # regions re-encoded per refinement step;
                                        # concentrating on the few highest-uncertainty
                                        # regions lets them reach full resolution
+    min_margin_gain: float = 0.0       # optional no-regret guard for refinement
+                                       # adoption: require top1-top2 probability
+                                       # margin to improve by at least this amount
+                                       # in addition to reducing calibrated
+                                       # uncertainty. 0.0 keeps legacy behavior.
 
     # --- Calibrator ---
     calibrator_hidden: int = 16

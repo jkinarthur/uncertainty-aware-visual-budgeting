@@ -1,0 +1,20 @@
+# Qwen2.5-VL-7B on XLRS-Bench-lite (ultra-high-res RS, ~8500x8500 native).
+# Multiple-choice (A-D). Images are capped to 2048px on prep, so a high-res
+# crop carries far more detail than the coarse thumbnail -> real resolution
+# headroom for uncertainty-gated refinement.
+coarse_tokens: 64        # ~8x8 patch thumbnail of the whole scene
+b_min: 128
+b_max: 1024              # large budget: crops of uncertain ROIs at high detail
+grid_h: 6                # 36 regions
+grid_w: 6
+alpha: 0.5
+tau: 0.3
+gamma: 8.0
+k_passes: 3
+max_refine_steps: 2
+top_m_regions: 4
+region_floor: 2
+refine_fraction: 0.35    # refine only the top-35% most uncertain queries
+report_uncertainty: coarse   # expose coarse-pass U_hat for selective prediction
+device: cuda
+seed: 0

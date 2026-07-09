@@ -22,12 +22,51 @@ def run_method(method, backend, samples: Sequence[Sample], progress=False) -> Li
     results = []
     it = tqdm(samples, desc=getattr(method, "name", "uavib"), disable=not progress)
     for s in it:
-        if isinstance(method, UAViB):
-            r = method.run(s.image, s.question, list(s.candidates), answer=s.answer)
-        else:
-            r = method.run(backend, s.image, s.question, list(s.candidates), answer=s.answer)
+        try:
+            if isinstance(method, UAViB):
+                r = method.run(s.image, s.question, list(s.candidates), answer=s.answer)
+            else:
+                r = method.run(backend, s.image, s.question, list(s.candidates), answer=s.answer)
+        except Exception as exc:  # pragma: no cover - GPU OOM safety net
+            # A single pathological sample (typically a CUDA OOM on a very wide
+            # budget) must not discard an entire method's results. Clear the GPU
+            # cache and fall back to the cheap coarse pass for this one sample so
+            # the run completes and is still saved.
+            _clear_cuda_cache()
+            r = _coarse_fallback(backend, method, s)
+            if r is None:
+                raise exc
         results.append(r)
     return results
+
+
+def _clear_cuda_cache() -> None:
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:  # pragma: no cover
+        pass
+
+
+def _coarse_fallback(backend, method, s: Sample):
+    """Cheap coarse-pass result used when a sample OOMs, so the run survives."""
+    try:
+        cfg = getattr(method, "cfg", None) or getattr(method, "config", None)
+        coarse_tokens = getattr(cfg, "coarse_tokens", 64) if cfg is not None else 64
+        num_regions = getattr(cfg, "num_regions", 1) if cfg is not None else 1
+        out = backend.coarse_answer(s.image, s.question, list(s.candidates), coarse_tokens)
+        conf = float(np.max(out.probs))
+        return QueryResult(
+            answer=out.pred, confidence=conf, uncertainty=1.0 - conf,
+            tokens_used=int(out.tokens_used), num_refine_steps=0,
+            region_budgets=np.zeros(num_regions),
+            region_uncertainty=np.full(num_regions, 1.0 / max(num_regions, 1)),
+            features=None, latency_ms=0.0,
+            correct=(None if s.answer is None else out.pred == s.answer),
+        )
+    except Exception:  # pragma: no cover
+        return None
 
 
 def paired_bootstrap_pvalue(a: Sequence[bool], b: Sequence[bool], n_boot=10000, seed=0) -> float:

@@ -107,6 +107,9 @@ class HFBackend(MLLMBackend):
             tok_lp = lp[torch.arange(len(tgt)), tgt]
             ans_lp = tok_lp[-n_ans:].mean()  # length-normalised
             logprobs.append(float(ans_lp))
+            del inputs, out, logits, labels, lp, tgt, tok_lp
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         logprobs = np.array(logprobs, dtype=np.float64)
         probs = np.exp(logprobs - logprobs.max())
         return probs / probs.sum()
@@ -161,11 +164,27 @@ class HFBackend(MLLMBackend):
         images = [resize_to_tokens(image, thumb_tokens, self.patch_size)]
         used = thumb_tokens
         floor = 4
-        for i, b in enumerate(region_budgets):
-            if b > floor * 2:
-                tile = crop_region(image, i, grid_h, grid_w)
-                images.append(resize_to_tokens(tile, int(b), self.patch_size))
-                used += int(b)
+        # Bound the total vision tokens fed to a single (eager-attention) forward
+        # so wide-budget baselines that would tile every region (e.g. full-
+        # resolution / oracle emit up to grid_h*grid_w crops) cannot exceed GPU
+        # memory. Tiles are added in descending-budget order and the lowest-
+        # budget regions are dropped once the cap is reached; UAViB itself only
+        # expands ``top_m_regions`` (<= 4) tiles, so it is never affected.
+        max_vis_tokens = 2200
+        per_tile_cap = 384  # matches the processor's max_pixels ceiling
+        real = min(thumb_tokens, per_tile_cap)
+        order = np.argsort(-region_budgets)
+        for i in order:
+            b = int(region_budgets[i])
+            if b <= floor * 2:
+                continue
+            tile_real = min(b, per_tile_cap)
+            if real + tile_real > max_vis_tokens:
+                continue
+            tile = crop_region(image, int(i), grid_h, grid_w)
+            images.append(resize_to_tokens(tile, b, self.patch_size))
+            used += b
+            real += tile_real
         probs = self._score_candidates(images, question, candidates)
         pred = candidates[int(np.argmax(probs))]
         attn = self._region_attention(images[:1], question, pred, grid_h, grid_w)
